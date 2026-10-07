@@ -2,29 +2,31 @@ import streamlit as st
 import pandas as pd
 import datetime
 import os
+from streamlit_gsheets import GSheetsConnection
 
 # Configuración corporativa de la página
 st.set_page_config(page_title="Sanzza Company - Control de Drywall", page_icon="🏗️", layout="centered")
 
 # --- LOGO Y NOMBRE DE LA COMPAÑÍA ---
-# Si subiste el logo a tu repositorio como 'logo.png', se cargará automáticamente
-if os.path.exists("logo.jpg"):
-    st.image("logo.jpg", width=200)
+if os.path.exists("logo.png"):
+    st.image("logo.png", width=180)
 
 st.title("Sistema de Control de Instalaciones")
 st.subheader("Sanzza Company UX")
 st.write("Portal de registro diario para instaladores y ayudantes de drywall.")
 
-# Inicializar base de datos temporal (Se reemplazará con Google Sheets en la Parte 2)
-if 'datos' not in st.session_state:
-    st.session_state.datos = pd.DataFrame(columns=[
-        "Fecha", "Trabajo / Obra", "Ayudante", "Tipo Hoja", "Hojas", "Total Sqft", "Precio/Sqft", "Total Dinero ($)", "Horas Ayudante", "Precio/Hora ($)", "Pago Ayudante ($)"
-    ])
+# --- CONEXIÓN DIRECTA CON GOOGLE SHEETS ---
+try:
+    conn = st.connection("gsheets", type=GSheetsConnection)
+    df_existente = conn.read(ttl="5m")
+except Exception as e:
+    st.error("Error al conectar con la base de datos de Google. Asegúrate de configurar las llaves en los Secrets.")
+    df_existente = pd.DataFrame()
 
 # --- FORMULARIO DE CAPTURA ---
 st.header("📝 Registro del Día")
 
-with st.form("registro_diario", clear_on_submit=False):
+with st.form("registro_diario", clear_on_submit=True):
     fecha = st.date_input("Fecha", datetime.date.today())
     
     col_nombres1, col_nombres2 = st.columns(2)
@@ -55,46 +57,43 @@ total_dinero_dia = total_sqft_dia * precio_por_sqft
 total_pago_ayudante_dia = horas_ayudante * pago_por_hora_ayudante
 
 if enviar and hojas_instaladas > 0:
-    nuevo_registro = {
-        "Fecha": fecha.strftime("%Y-%m-%d"), "Trabajo / Obra": nombre_trabajo, "Ayudante": nombre_ayudante,
-        "Tipo Hoja": tipo_hoja, "Hojas": hojas_instaladas, "Total Sqft": total_sqft_dia, 
-        "Precio/Sqft": precio_por_sqft, "Total Dinero ($)": total_dinero_dia, 
-        "Horas Ayudante": horas_ayudante, "Precio/Hora ($)": pago_por_hora_ayudante, "Pago Ayudante ($)": total_pago_ayudante_dia
-    }
-    st.session_state.datos = pd.concat([st.session_state.datos, pd.DataFrame([nuevo_registro])], ignore_index=True)
-    st.success("¡Tu reporte ha sido enviado y registrado exitosamente!")
-
-# --- VISTA DE CONTROL EXCLUSIVA PARA EL ADMINISTRADOR ---
-# Nota: Tus trabajadores verán la lista de abajo, pero tú la controlarás en Google Sheets de forma permanente.
-if not st.session_state.datos.empty:
-    st.header("📊 Historial General de Envíos")
+    nuevo_registro = pd.DataFrame([{
+        "Fecha": fecha.strftime("%Y-%m-%d"), 
+        "Trabajo / Obra": nombre_trabajo, 
+        "Ayudante": nombre_ayudante,
+        "Tipo Hoja": tipo_hoja, 
+        "Hojas": int(hojas_instaladas), 
+        "Total Sqft": int(total_sqft_dia), 
+        "Precio/Sqft": float(precio_por_sqft), 
+        "Total Dinero ($)": float(total_dinero_dia), 
+        "Horas Ayudante": float(horas_ayudante), 
+        "Precio/Hora ($)": float(pago_por_hora_ayudante), 
+        "Pago Ayudante ($)": float(total_pago_ayudante_dia)
+    }])
     
-    datos_editados = st.data_editor(st.session_state.datos, num_rows="dynamic", use_container_width=True)
-    
-    if not datos_editados.equals(st.session_state.datos):
-        for idx, row in datos_editados.iterrows():
-            try:
-                hojas = int(row["Hojas"])
-                tipo = row["Tipo Hoja"]
-                p_sqft = float(row["Precio/Sqft"])
-                hrs = float(row["Horas Ayudante"])
-                p_hora = float(row["Precio/Hora ($)"])
-                
-                sqft_h = 32
-                for k, v in medidas.items():
-                    if k in str(tipo): sqft_h = v; break
-                
-                datos_editados.at[idx, "Total Sqft"] = hojas * sqft_h
-                datos_editados.at[idx, "Total Dinero ($)"] = hojas * sqft_h * p_sqft
-                datos_editados.at[idx, "Pago Ayudante ($)"] = hrs * p_hora
-            except: pass
-        st.session_state.datos = datos_editados
+    # Unir datos existentes con el nuevo reporte diario
+    if not df_existente.empty:
+        df_final = pd.concat([df_existente, nuevo_registro], ignore_index=True)
+    else:
+        df_final = nuevo_registro
+        
+    # Guardar directamente en Google Sheets en la nube
+    try:
+        conn.update(spreadsheet=st.secrets["connections"]["gsheets"]["spreadsheet"], data=df_final)
+        st.success("¡Tu reporte ha sido enviado y registrado exitosamente en la base de datos principal!")
         st.rerun()
+    except Exception as e:
+        st.error(f"Error al enviar datos: {e}")
 
-    acumulado_sqft = st.session_state.datos["Total Sqft"].sum()
-    acumulado_dinero = st.session_state.datos["Total Dinero ($)"].sum()
-    acumulado_horas = st.session_state.datos["Horas Ayudante"].sum()
-    acumulado_pago_ayudante = st.session_state.datos["Pago Ayudante ($)"].sum()
+# --- VISTA DE CONTROL DEL HISTORIAL ---
+if df_existente is not None and not df_existente.empty:
+    st.header("📊 Historial General de Envíos")
+    st.dataframe(df_existente, use_container_width=True)
+    
+    acumulado_sqft = pd.to_numeric(df_existente["Total Sqft"]).sum()
+    acumulado_dinero = pd.to_numeric(df_existente["Total Dinero ($)"]).sum()
+    acumulado_horas = pd.to_numeric(df_existente["Horas Ayudante"]).sum()
+    acumulado_pago_ayudante = pd.to_numeric(df_existente["Pago Ayudante ($)"]).sum()
     ganancia_neta = acumulado_dinero - acumulado_pago_ayudante
     
     m1, m2, m3 = st.columns(3)
