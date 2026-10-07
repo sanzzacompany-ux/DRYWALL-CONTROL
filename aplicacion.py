@@ -39,7 +39,7 @@ st.markdown("---")
 st.subheader("🧱 Entrada de Materiales")
 st.write("Selecciona una medida, pon la cantidad instalada y el precio, luego agrégala a tu lista diaria.")
 
-col_mat1, col_mat2, col_mat3 = st.columns()
+col_mat1, col_mat2, col_mat3 = st.columns(3)
 with col_mat1:
     tipo_hoja = st.selectbox("Tamaño de la Hoja", ["4x8 (32 sqft)", "4x9 (36 sqft)", "4x10 (40 sqft)", "4x12 (48 sqft)"])
 with col_mat2:
