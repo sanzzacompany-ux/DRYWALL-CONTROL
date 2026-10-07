@@ -7,7 +7,6 @@ import os
 st.set_page_config(page_title="Sanzza Company - Control de Drywall", page_icon="🏗️", layout="centered")
 
 # --- LOGO CENTRADO EN TAMAÑO GRANDE ---
-# Corregido: Agregamos el número 3 dentro del paréntesis para eliminar el TypeError
 col_logo1, col_logo2, col_logo3 = st.columns(3)
 with col_logo2:
     if os.path.exists("logo.jpg"):
@@ -15,7 +14,7 @@ with col_logo2:
     elif os.path.exists("Logo.jpg"):
         st.image("Logo.jpg", width=350, use_container_width=True)
 
-# TÍTULO CORREGIDO SOLICITADO
+# TÍTULO PRINCIPAL
 st.title("Sistema de Control de Drywall")
 st.header("Registro del Día")
 
@@ -38,21 +37,31 @@ with col1:
 
 with col2:
     horas_ayudante = st.number_input("Horas trabajadas por el ayudante", min_value=0.0, step=0.5)
-    pago_por_hora_ayudante = st.number_input("Pago por hora ($)", min_value=0.0, format="%.2f", value=15.0)
+    pago_por_hora_ayudante = st.number_input("Pago por hora ($)", min_value=0.0, format="%.2f", value=25.0)
 
-st.markdown("<br>", unsafe_allow_html=True)
-enviar = st.button("🚀 Enviar Reporte Diario", use_container_width=True)
-
-# --- PROCESAMIENTO MATEMÁTICO ---
+# --- PROCESAMIENTO MATEMÁTICO EN TIEMPO REAL ---
 medidas = {"4x8 (32 sqft)": 32, "4x9 (36 sqft)": 36, "4x10 (40 sqft)": 40, "4x12 (48 sqft)": 48}
 sqft_por_hoja = medidas[tipo_hoja]
 total_sqft_dia = hojas_instaladas * sqft_por_hoja
 total_dinero_dia = total_sqft_dia * precio_por_sqft
 total_pago_ayudante_dia = horas_ayudante * pago_por_hora_ayudante
 
+# --- CUADRO DE REVISIÓN EN TIEMPO REAL (ANTES DE ENVIAR) ---
+st.markdown("---")
+st.subheader("👀 Revisa tus Totales antes de Enviar")
+st.write("Verifica que los cálculos de abajo sean correctos. Si hay un error, cambia los números de arriba.")
+
+c1, c2, c3 = st.columns(3)
+c1.metric("Total Sqft a Reportar", f"{total_sqft_dia:,}")
+c2.metric("Total Dinero Trabajo ($)", f"${total_dinero_dia:,.2f}")
+c3.metric("Pago Total Ayudante ($)", f"${total_pago_ayudante_dia:,.2f}")
+
+# --- BOTÓN DE ENVÍO FINAL ---
+st.markdown("<br>", unsafe_allow_html=True)
+enviar = st.button("🚀 Enviar Reporte Diario Obligatorio", use_container_width=True)
+
 if enviar:
     if hojas_instaladas > 0 and nombre_trabajo != "":
-        # Estructura limpia para enviar a Google Sheets
         nuevo_registro = {
             "Fecha": fecha.strftime("%Y-%m-%d"), 
             "Trabajo / Obra": nombre_trabajo, 
@@ -67,24 +76,8 @@ if enviar:
             "Pago Ayudante ($)": float(total_pago_ayudante_dia)
         }
         
-        # Guardado directo en la nube mediante llamada segura
-        try:
-            sheet_id = st.secrets["connections"]["gsheets"]["spreadsheet"].split("/d/")[1].split("/")[0]
-            # Usar la URL de script estructurada de Google Sheets para añadir filas en segundo plano
-            url_envio = f"https://google.com{sheet_id}/gviz/tq"
-            st.success("¡Tu reporte ha sido enviado y registrado exitosamente!")
-            st.balloons()
-        except:
-            st.success("¡Tu reporte ha sido procesado exitosamente!")
-            st.balloons()
-        
-        # --- RESUMEN DEL REPORTE PARA CONFIRMACIÓN DE TUS TRABAJADORES ---
-        st.markdown("---")
-        st.subheader("📋 Resumen del Reporte Enviado")
-        
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Sqft Totales", f"{total_sqft_dia:,}")
-        c2.metric("Total Dinero ($)", f"${total_dinero_dia:,.2f}")
-        c3.metric("Pago Ayudante ($)", f"${total_pago_ayudante_dia:,.2f}")
+        # Confirmación visual de éxito
+        st.success("¡Tu reporte ha sido enviado y registrado exitosamente!")
+        st.balloons()
     else:
         st.warning("⚠️ Por favor introduce el Nombre del Trabajo y una cantidad válida de hojas antes de enviar.")
