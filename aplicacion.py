@@ -6,15 +6,16 @@ import os
 # Configuración corporativa de la página
 st.set_page_config(page_title="Sanzza Company - Control de Drywall", page_icon="🏗️", layout="centered")
 
-# --- LOGO EN TAMAÑO GRANDE ---
-# Ajustamos el ancho (width) a 350 para que el logotipo resalte de forma imponente
-if os.path.exists("logo.jpg"):
-    st.image("logo.jpg", width=350)
-elif os.path.exists("Logo.jpg"):
-    st.image("Logo.jpg", width=350)
+# --- LOGO CENTRADO EN TAMAÑO GRANDE ---
+# Usamos columnas para forzar a la imagen a quedarse perfectamente en el centro de la pantalla
+col_logo1, col_logo2, col_logo3 = st.columns([1, 2, 1])
+with col_logo2:
+    if os.path.exists("logo.jpg"):
+        st.image("logo.jpg", width=350, use_container_width=True)
+    elif os.path.exists("Logo.jpg"):
+        st.image("Logo.jpg", width=350, use_container_width=True)
 
 st.title("Sistema de Control de Instalaciones")
-st.write("Portal de registro diario para instaladores y ayudantes de drywall.")
 
 # --- CONEXIÓN AUTOMÁTICA A GOOGLE SHEETS ---
 try:
@@ -25,9 +26,8 @@ except Exception as e:
     df_existente = pd.DataFrame()
 
 # --- FORMULARIO DE CAPTURA COMPLETO ---
-st.header("📝 Registro del Día")
+st.header("Registro del Día")
 
-# Nota: Quitamos la restricción interna del formulario para asegurar que todos los campos se muestren completos en cualquier pantalla
 fecha = st.date_input("Fecha", datetime.date.today())
 
 col_nombres1, col_nombres2 = st.columns(2)
@@ -48,7 +48,7 @@ with col2:
     horas_ayudante = st.number_input("Horas trabajadas por el ayudante", min_value=0.0, step=0.5)
     pago_por_hora_ayudante = st.number_input("Pago por hora ($)", min_value=0.0, format="%.2f", value=15.0)
 
-st.markdown("<br>", unsafe_unsafe_with_tokens=True) # Espacio visual antes del botón
+st.markdown("<br>", unsafe_allow_html=True) # Espacio visual corregido antes del botón
 enviar = st.button("🚀 Enviar Reporte Diario", use_container_width=True)
 
 # --- PROCESAMIENTO MATEMÁTICO ---
