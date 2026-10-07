@@ -8,10 +8,10 @@ st.set_page_config(page_title="Control de Drywall", page_icon="🏗️", layout=
 st.title("🏗️ Control Diario de Instalación de Drywall")
 st.write("Registra el trabajo diario, calcula el total de sqft, dinero y horas/pago del ayudante.")
 
-# Inicializar base de datos en la nube temporal de la página con las nuevas columnas
+# Inicializar base de datos con la columna Precio/Hora integrada para el recálculo correcto
 if 'datos' not in st.session_state:
     st.session_state.datos = pd.DataFrame(columns=[
-        "Fecha", "Trabajo / Obra", "Ayudante", "Tipo Hoja", "Hojas", "Total Sqft", "Precio/Sqft", "Total Dinero ($)", "Horas Ayudante", "Pago Ayudante ($)"
+        "Fecha", "Trabajo / Obra", "Ayudante", "Tipo Hoja", "Hojas", "Total Sqft", "Precio/Sqft", "Total Dinero ($)", "Horas Ayudante", "Precio/Hora ($)", "Pago Ayudante ($)"
     ])
 
 # --- FORMULARIO DE CAPTURA ---
@@ -63,6 +63,7 @@ if enviar and hojas_instaladas > 0:
         "Precio/Sqft": precio_por_sqft,
         "Total Dinero ($)": total_dinero_dia, 
         "Horas Ayudante": horas_ayudante,
+        "Precio/Hora ($)": pago_por_hora_ayudante,
         "Pago Ayudante ($)": total_pago_ayudante_dia
     }
     st.session_state.datos = pd.concat([st.session_state.datos, pd.DataFrame([nuevo_registro])], ignore_index=True)
@@ -71,7 +72,7 @@ if enviar and hojas_instaladas > 0:
 # --- VISTA DE RESULTADOS ---
 if not st.session_state.datos.empty:
     st.header("📊 Resumen Acumulado Total")
-    st.info("💡 Consejo: Puedes hacer doble clic sobre cualquier celda de la tabla de abajo para modificar los datos directamente si te equivocaste.")
+    st.info("💡 Consejo: Puedes hacer doble clic sobre las celdas de Hojas, Precio/Sqft, Horas o Precio/Hora para corregir errores. Todo se recalcula de inmediato.")
     
     # Tabla editable interactiva
     datos_editados = st.data_editor(
@@ -80,8 +81,7 @@ if not st.session_state.datos.empty:
         use_container_width=True
     )
     
-    # Recalcular automáticamente si el usuario edita la tabla directamente
-    # Volver a calcular sqft, dinero y pago basados en las ediciones manuales del usuario
+    # Recalcular automáticamente con matemáticas exactas si cambias datos manuales
     if not datos_editados.equals(st.session_state.datos):
         for idx, row in datos_editados.iterrows():
             try:
@@ -89,34 +89,32 @@ if not st.session_state.datos.empty:
                 tipo = row["Tipo Hoja"]
                 p_sqft = float(row["Precio/Sqft"])
                 hrs = float(row["Horas Ayudante"])
+                p_hora = float(row["Precio/Hora ($)"])
                 
-                # Buscar sqft por tipo de hoja en la fila editada
+                # Buscar tamaño de la hoja
                 sqft_h = 32
                 for k, v in medidas.items():
                     if k in str(tipo):
                         sqft_h = v
                         break
                 
-                # Forzar recálculo automático de la fila modificada
+                # Actualizar montos de forma sincronizada
                 datos_editados.at[idx, "Total Sqft"] = hojas * sqft_h
                 datos_editados.at[idx, "Total Dinero ($)"] = hojas * sqft_h * p_sqft
-                # Calcular la tasa implícita o usar la base para actualizar el pago
-                tasa_hora = float(row["Pago Ayudante ($)"]) / hrs if hrs > 0 else 0
-                if tasa_hora == 0:
-                    datos_editados.at[idx, "Pago Ayudante ($)"] = hrs * 15.0
+                datos_editados.at[idx, "Pago Ayudante ($)"] = hrs * p_hora
             except:
                 pass
         st.session_state.datos = datos_editados
         st.rerun()
 
-    # Cálculos globales actualizados con las modificaciones del usuario
+    # Cálculos globales corregidos
     acumulado_sqft = st.session_state.datos["Total Sqft"].sum()
     acumulado_dinero = st.session_state.datos["Total Dinero ($)"].sum()
     acumulado_horas = st.session_state.datos["Horas Ayudante"].sum()
     acumulado_pago_ayudante = st.session_state.datos["Pago Ayudante ($)"].sum()
     ganancia_neta = acumulado_dinero - acumulado_pago_ayudante
     
-    # Tarjetas de totales en tiempo real
+    # Tarjetas de totales corregidas en tiempo real
     m1, m2, m3 = st.columns(3)
     m1.metric("Total Sqft", f"{acumulado_sqft:,}")
     m2.metric("Total Dinero Bruto", f"${acumulado_dinero:,.2f}")
