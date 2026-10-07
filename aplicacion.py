@@ -8,6 +8,12 @@ st.set_page_config(page_title="Control de Drywall", page_icon="🏗️", layout=
 st.title("🏗️ Control Diario de Instalación de Drywall")
 st.write("Registra el trabajo diario, calcula el total de sqft, dinero y horas/pago del ayudante.")
 
+# Inicializar base de datos en la nube temporal de la página
+if 'datos' not in st.session_state:
+    st.session_state.datos = pd.DataFrame(columns=[
+        "Fecha", "Tipo Hoja", "Hojas", "Total Sqft", "Precio/Sqft", "Total Dinero ($)", "Horas Ayudante", "Pago Ayudante ($)"
+    ])
+
 # --- FORMULARIO DE CAPTURA ---
 st.header("📝 Registro del Día")
 
@@ -26,7 +32,7 @@ with st.form("registro_diario", clear_on_submit=True):
 
     enviar = st.form_submit_button("Guardar Registro")
 
-# Mapeo del tamaño de la hoja a sqft reales (Se agregó la de 9 pies)
+# Mapeo del tamaño de la hoja a sqft reales
 medidas = {
     "4x8 (32 sqft)": 32, 
     "4x9 (36 sqft)": 36, 
@@ -37,12 +43,6 @@ sqft_por_hoja = medidas[tipo_hoja]
 total_sqft_dia = hojas_instaladas * sqft_por_hoja
 total_dinero_dia = total_sqft_dia * precio_por_sqft
 total_pago_ayudante_dia = horas_ayudante * pago_por_hora_ayudante
-
-# Inicializar base de datos en la nube temporal de la página
-if 'datos' not in st.session_state:
-    st.session_state.datos = pd.DataFrame(columns=[
-        "Fecha", "Tipo Hoja", "Hojas", "Total Sqft", "Precio/Sqft", "Total Dinero ($)", "Horas Ayudante", "Pago Ayudante ($)"
-    ])
 
 if enviar and hojas_instaladas > 0:
     nuevo_registro = {
@@ -58,6 +58,12 @@ if enviar and hojas_instaladas > 0:
 if not st.session_state.datos.empty:
     st.header("📊 Resumen Acumulado Total")
     
+    # Botón para borrar el último registro en caso de error
+    if st.button("⚠️ ¿Te equivocaste? Haz clic aquí para borrar el último registro guardado"):
+        st.session_state.datos = st.session_state.datos.drop(st.session_state.datos.index[-1])
+        st.warning("El último registro ha sido eliminado.")
+        st.rerun()
+
     acumulado_sqft = st.session_state.datos["Total Sqft"].sum()
     acumulado_dinero = st.session_state.datos["Total Dinero ($)"].sum()
     acumulado_horas = st.session_state.datos["Horas Ayudante"].sum()
