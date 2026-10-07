@@ -39,7 +39,7 @@ st.markdown("---")
 st.subheader("🧱 Entrada de Materiales")
 st.write("Selecciona una medida, pon la cantidad instalada y el precio, luego agrégala a tu lista diaria.")
 
-col_mat1, col_mat2, col_mat3 = st.columns([2, 1, 1])
+col_mat1, col_mat2, col_mat3 = st.columns()
 with col_mat1:
     tipo_hoja = st.selectbox("Tamaño de la Hoja", ["4x8 (32 sqft)", "4x9 (36 sqft)", "4x10 (40 sqft)", "4x12 (48 sqft)"])
 with col_mat2:
@@ -82,13 +82,16 @@ with col_ayudante2:
 
 total_pago_ayudante_dia = horas_ayudante * pago_por_hora_ayudante
 
-# --- CUADRO DE REVISIÓN EN TIEMPE REAL ---
+# --- CUADRO DE REVISIÓN EN TIEMPO REAL ---
 st.markdown("---")
 st.subheader("👀 Revisa tus Totales Acumulados antes de Enviar")
 
 # Calcular los totales acumulados de la lista de materiales agregados
 acumulado_sqft = st.session_state.lista_hojas_dia["Total Sqft"].sum()
 acumulado_dinero = st.session_state.lista_hojas_dia["Total Dinero ($)"].sum()
+
+# CÁLCULO DE LA GANANCIA LIMPIA SOLICITADA (Total Trabajo - Pago Ayudante)
+ganancia_limpia = acumulado_dinero - total_pago_ayudante_dia
 
 if not st.session_state.lista_hojas_dia.empty:
     st.write("📋 **Desglose de las hojas agregadas hoy:**")
@@ -97,10 +100,17 @@ if not st.session_state.lista_hojas_dia.empty:
         st.session_state.lista_hojas_dia = pd.DataFrame(columns=["Tipo Hoja", "Hojas", "Total Sqft", "Precio/Sqft", "Total Dinero ($)"])
         st.rerun()
 
+# Primera fila de métricas básicas
 c1, c2, c3 = st.columns(3)
 c1.metric("Total Sqft del Día", f"{int(acumulado_sqft):,}")
-c2.metric("Total Dinero Trabajo ($)", f"${acumulado_dinero:,.2f}")
+c2.metric("Total Dinero Bruto ($)", f"${acumulado_dinero:,.2f}")
 c3.metric("Pago Total Ayudante ($)", f"${total_pago_ayudante_dia:,.2f}")
+
+# NUEVA SECCIÓN: Mostrar de forma destacada la Ganancia Neta Limpia
+st.markdown("<br>", unsafe_allow_html=True)
+col_neto1, col_neto2 = st.columns([1, 2])
+with col_neto2:
+    st.metric("💰 Tu Ganancia Limpia (Neto)", f"${ganancia_limpia:,.2f}")
 
 # --- BOTÓN DE ENVÍO FINAL ---
 st.markdown("<br>", unsafe_allow_html=True)
@@ -108,8 +118,7 @@ enviar = st.button("🚀 Enviar Reporte Diario Obligatorio", use_container_width
 
 if enviar:
     if not st.session_state.lista_hojas_dia.empty and nombre_trabajo != "":
-        # Aquí el sistema procesa el paquete completo de datos de forma limpia
-        st.success("¡Tu reporte completo de múltiples medidas ha sido enviado y registrado exitosamente!")
+        st.success("¡Tu reporte completo con el cálculo de ganancia neta ha sido enviado y registrado exitosamente!")
         st.balloons()
         # Limpiar la lista temporal para el día siguiente
         st.session_state.lista_hojas_dia = pd.DataFrame(columns=["Tipo Hoja", "Hojas", "Total Sqft", "Precio/Sqft", "Total Dinero ($)"])
