@@ -8,8 +8,8 @@ st.set_page_config(page_title="Sanzza Company - Control de Drywall", page_icon="
 
 # --- LOGO Y NOMBRE DE LA COMPAÑÍA ---
 # Si subiste el logo a tu repositorio como 'logo.png', se cargará automáticamente
-if os.path.exists("logo.png"):
-    st.image("logo.png", width=200)
+if os.path.exists("logo.jpg"):
+    st.image("logo.jpg", width=200)
 
 st.title("Sistema de Control de Instalaciones")
 st.subheader("Sanzza Company UX")
